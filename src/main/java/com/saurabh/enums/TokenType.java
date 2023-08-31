@@ -1,4 +1,4 @@
-package com.saurabh.token;
+package com.saurabh.enums;
 public enum TokenType {
     BEARER
 }

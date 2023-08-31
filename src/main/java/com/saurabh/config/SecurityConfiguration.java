@@ -1,5 +1,6 @@
 package com.saurabh.config;
 
+import com.saurabh.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,9 +14,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import static com.saurabh.model.Permission.*;
-import static com.saurabh.model.Role.ADMIN;
-import static com.saurabh.model.Role.MANAGER;
+import static com.saurabh.enums.Permission.*;
+import static com.saurabh.enums.Role.ADMIN;
+import static com.saurabh.enums.Role.MANAGER;
 import static org.springframework.http.HttpMethod.*;
 
 @Configuration

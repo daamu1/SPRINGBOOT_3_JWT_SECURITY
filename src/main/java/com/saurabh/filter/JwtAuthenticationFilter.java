@@ -1,4 +1,4 @@
-package com.saurabh.config;
+package com.saurabh.filter;
 
 import com.saurabh.repository.TokenRepository;
 import jakarta.servlet.FilterChain;

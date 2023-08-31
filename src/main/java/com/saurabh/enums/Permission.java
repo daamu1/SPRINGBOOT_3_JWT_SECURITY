@@ -1,4 +1,4 @@
-package com.saurabh.model;
+package com.saurabh.enums;
 
 
 import lombok.Getter;
