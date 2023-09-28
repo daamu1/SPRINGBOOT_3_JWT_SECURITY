@@ -1,4 +1,4 @@
-package com.saurabh.config;
+package com.yourcompany.application.config;
 
 import com.saurabh.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,35 +12,49 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Configuration
 @RequiredArgsConstructor
-public class ApplicationConfiguration {
+public class SecurityConfig {
 
     private final UserRepository userRepository;
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
+    /**
+     * Configuration bean for custom UserDetailsService.
+     */
     @Bean
-    public UserDetailsService userDetailsService() {
+    public UserDetailsService customUserDetailsService() {
         return username -> userRepository.findByEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found for username: " + username));
     }
 
+    /**
+     * Configuration bean for custom AuthenticationProvider.
+     */
     @Bean
-    public AuthenticationProvider authenticationProvider() {
+    public AuthenticationProvider customAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService());
-        authProvider.setPasswordEncoder(passwordEncoder());
+        authProvider.setUserDetailsService(userDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder);
         return authProvider;
     }
 
+    /**
+     * Configuration bean for AuthenticationManager.
+     */
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager customAuthenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
+    /**
+     * Configuration bean for PasswordEncoder.
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
 }
