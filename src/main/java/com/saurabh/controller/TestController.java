@@ -1,7 +1,6 @@
-package com.example.projectname.controllers;
+package com.saurabh.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,15 +10,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/users")
-@Tag(name = "User Controller", description = "Operations related to users")
-public class UserController {
-
+@RequestMapping("/api/v1/demo-controller")
+@Hidden
+public class TestController {
     @GetMapping
-    @Operation(summary = "Get a greeting message from the user controller")
-    public ResponseEntity<Map<String, String>> sayHello() {
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Hello from the user controller");
-        return ResponseEntity.ok(response);
+    public ResponseEntity<String> sayHello() {
+        return ResponseEntity.ok("Hello from secured endpoint");
+    }
+
+    @GetMapping("/msg")
+    public ResponseEntity<Map<String,String>> message()
+    {
+        Map<String,String>message=new HashMap<>();
+        message.put("Message","Hey I am inside the Test controller");
+        return ResponseEntity.ok(message);
     }
 }
