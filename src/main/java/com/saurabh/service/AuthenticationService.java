@@ -27,7 +27,7 @@ public class AuthenticationService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    public ApiResponse register(RegistrationRequestDTO request) {
+    public ApiResponse<AuthenticationResponse> register(RegistrationRequestDTO request) {
         var user = User.builder()
                 .firstname(request.getFirstname())
                 .lastname(request.getLastname())
@@ -39,17 +39,16 @@ public class AuthenticationService {
         var jwtToken = jwtService.generateToken(savedUser);
         var refreshToken = jwtService.generateRefreshToken(savedUser);
         saveUserToken(savedUser, jwtToken);
-        return ApiResponse.builder()
-                .success(true)
-                .message("Registration Successful")
-                .data(AuthenticationResponse.builder()
-                        .accessToken(jwtToken)
-                        .refreshToken(refreshToken)
-                        .build())
-                .build();
+        return new ApiResponse<AuthenticationResponse>(
+                true,
+                "REGISTRATION SUCCESSFUL"
+                ,AuthenticationResponse.builder()
+                .accessToken(jwtToken)
+                .refreshToken(refreshToken)
+                .build());
     }
 
-    public ApiResponse authenticate(AuthenticationRequestDTO request) {
+    public ApiResponse<AuthenticationResponse> authenticate(AuthenticationRequestDTO request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -62,14 +61,13 @@ public class AuthenticationService {
         var refreshToken = jwtService.generateRefreshToken(user);
         revokeAllUserTokens(user);
         saveUserToken(user, jwtToken);
-        return ApiResponse.builder()
-                .success(true)
-                .message("Authentication Successful")
-                .data(AuthenticationResponse.builder()
-                        .accessToken(jwtToken)
-                        .refreshToken(refreshToken)
-                        .build())
-                .build();
+        return new ApiResponse<AuthenticationResponse>(
+                true,
+                "AUTHENTICATION SUCCESSFUL"
+                ,AuthenticationResponse.builder()
+                .accessToken(jwtToken)
+                .refreshToken(refreshToken)
+                .build());
     }
 
     private void saveUserToken(User user, String jwtToken) {

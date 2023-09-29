@@ -14,7 +14,7 @@ spring:
     database: postgresql
     database-platform: org.hibernate.dialect.PostgreSQLDialect
   application:
-    name: SPRINGBOOT SECURITY 3.0
+    name: SPRINGBOOT-SECURITY 3.0
 application:
   security:
     jwt:

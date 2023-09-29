@@ -1,7 +1,8 @@
-package com.saurabh.myapp.controller;
+package com.saurabh.controller;
 
 import com.saurabh.dto.ApiResponse;
 import com.saurabh.dto.AuthenticationRequestDTO;
+import com.saurabh.dto.AuthenticationResponse;
 import com.saurabh.dto.RegistrationRequestDTO;
 import com.saurabh.service.AuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,13 +16,12 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthenticationController {
-
     private final AuthenticationService authenticationService;
-
     @Autowired
     public AuthenticationController(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
     }
+
 
     /**
      * Register a new user.
@@ -30,8 +30,8 @@ public class AuthenticationController {
      * @return ResponseEntity with an ApiResponse as the response body.
      */
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse> register( @RequestBody RegistrationRequestDTO request) {
-        ApiResponse response = authenticationService.register(request);
+    public ResponseEntity<ApiResponse<AuthenticationResponse>> register(@RequestBody RegistrationRequestDTO request) {
+        ApiResponse<AuthenticationResponse> response = authenticationService.register(request);
         return ResponseEntity.ok(response);
     }
 
@@ -42,8 +42,8 @@ public class AuthenticationController {
      * @return ResponseEntity with an ApiResponse as the response body.
      */
     @PostMapping("/authenticate")
-    public ResponseEntity<ApiResponse> authenticate(@RequestBody AuthenticationRequestDTO request) {
-        ApiResponse response = authenticationService.authenticate(request);
+    public ResponseEntity<ApiResponse<AuthenticationResponse>> authenticate(@RequestBody AuthenticationRequestDTO request) {
+        ApiResponse<AuthenticationResponse> response = authenticationService.authenticate(request);
         return ResponseEntity.ok(response);
     }
 
