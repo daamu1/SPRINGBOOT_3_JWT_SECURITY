@@ -10,6 +10,7 @@ import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -59,6 +60,9 @@ public class JwtService {
                 userDetails,
                 refreshExpiration);
     }
+//    public String generateRefreshToken( ) {
+//        return UUID.randomUUID().toString();
+//    }
 
     private String buildToken(
             Map<String, Object> extraClaims,

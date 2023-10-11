@@ -1,11 +1,15 @@
 package com.saurabh.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.saurabh.dto.ApiResponse;
+import com.saurabh.dto.AuthenticationRequestDTO;
+import com.saurabh.dto.AuthenticationResponse;
+import com.saurabh.dto.RegistrationRequestDTO;
+import com.saurabh.enums.TokenType;
+import com.saurabh.model.Token;
 import com.saurabh.model.User;
 import com.saurabh.repository.TokenRepository;
 import com.saurabh.repository.UserRepository;
-import com.saurabh.model.Token;
-import com.saurabh.enums.TokenType;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +18,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import com.saurabh.dto.*;
 
 import java.io.IOException;
 
@@ -42,7 +45,7 @@ public class AuthenticationService {
         return new ApiResponse<AuthenticationResponse>(
                 true,
                 "REGISTRATION SUCCESSFUL"
-                ,AuthenticationResponse.builder()
+                , AuthenticationResponse.builder()
                 .accessToken(jwtToken)
                 .refreshToken(refreshToken)
                 .build());
@@ -58,13 +61,13 @@ public class AuthenticationService {
         var user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow();
         var jwtToken = jwtService.generateToken(user);
-        var refreshToken = jwtService.generateRefreshToken(user);
+        var refreshToken = jwtService.generateRefreshToken(user );
         revokeAllUserTokens(user);
         saveUserToken(user, jwtToken);
         return new ApiResponse<AuthenticationResponse>(
                 true,
                 "AUTHENTICATION SUCCESSFUL"
-                ,AuthenticationResponse.builder()
+                , AuthenticationResponse.builder()
                 .accessToken(jwtToken)
                 .refreshToken(refreshToken)
                 .build());
