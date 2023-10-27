@@ -1,125 +1,122 @@
 package com.saurabh.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.saurabh.dto.ApiResponse;
-import com.saurabh.dto.AuthenticationRequestDTO;
-import com.saurabh.dto.AuthenticationResponse;
-import com.saurabh.dto.RegistrationRequestDTO;
+import com.saurabh.dto.*;
 import com.saurabh.enums.TokenType;
+import com.saurabh.enums.UserRole;
+import com.saurabh.exception.TokenException;
+import com.saurabh.exception.UserAlreadyExistsException;
+import com.saurabh.model.Role;
 import com.saurabh.model.Token;
 import com.saurabh.model.User;
+import com.saurabh.repository.RoleRepository;
 import com.saurabh.repository.TokenRepository;
 import com.saurabh.repository.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    public ApiResponse<AuthenticationResponse> register(RegistrationRequestDTO request) {
-        var user = User.builder()
-                .firstname(request.getFirstname())
-                .lastname(request.getLastname())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(request.getRole())
-                .build();
-        var savedUser = userRepository.save(user);
-        var jwtToken = jwtService.generateToken(savedUser);
-        var refreshToken = jwtService.generateRefreshToken(savedUser);
-        saveUserToken(savedUser, jwtToken);
-        return new ApiResponse<AuthenticationResponse>(
-                true,
-                "REGISTRATION SUCCESSFUL"
-                , AuthenticationResponse.builder()
-                .accessToken(jwtToken)
-                .refreshToken(refreshToken)
-                .build());
-    }
-
-    public ApiResponse<AuthenticationResponse> authenticate(AuthenticationRequestDTO request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
-        var user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow();
-        var jwtToken = jwtService.generateToken(user);
-        var refreshToken = jwtService.generateRefreshToken(user );
-        revokeAllUserTokens(user);
-        saveUserToken(user, jwtToken);
-        return new ApiResponse<AuthenticationResponse>(
-                true,
-                "AUTHENTICATION SUCCESSFUL"
-                , AuthenticationResponse.builder()
-                .accessToken(jwtToken)
-                .refreshToken(refreshToken)
-                .build());
-    }
-
-    private void saveUserToken(User user, String jwtToken) {
-        var token = Token.builder()
-                .user(user)
-                .token(jwtToken)
-                .tokenType(TokenType.BEARER)
-                .expired(false)
-                .revoked(false)
-                .build();
-        tokenRepository.save(token);
-    }
-
-    private void revokeAllUserTokens(User user) {
-        var validUserTokens = tokenRepository.findAllValidTokenByUser(user.getId());
-        if (validUserTokens.isEmpty())
-            return;
-        validUserTokens.forEach(token -> {
-            token.setExpired(true);
-            token.setRevoked(true);
-        });
-        tokenRepository.saveAll(validUserTokens);
-    }
-
-    public void refreshToken(
-            HttpServletRequest request,
-            HttpServletResponse response
-    ) throws IOException {
-        final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        final String refreshToken;
-        final String userEmail;
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return;
+    public RegistrationResponseDTO register(RegistrationRequestDTO request) {
+        if (userRepository.existsByUserName(request.getUserName())) {
+            throw new UserAlreadyExistsException("User with the provided username already exists");
         }
-        refreshToken = authHeader.substring(7);
-        userEmail = jwtService.extractUsername(refreshToken);
-        if (userEmail != null) {
-            var user = userRepository.findByEmail(userEmail)
-                    .orElseThrow();
-            if (jwtService.isTokenValid(refreshToken, user)) {
-                var accessToken = jwtService.generateToken(user);
-                revokeAllUserTokens(user);
-                saveUserToken(user, accessToken);
-                var authResponse = AuthenticationResponse.builder()
-                        .accessToken(accessToken)
-                        .refreshToken(refreshToken)
-                        .build();
-                new ObjectMapper().writeValue(response.getOutputStream(), authResponse);
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new UserAlreadyExistsException("User with the provided email already exists");
+        }
+        Set<UserRole> userRoles = request.getRole();
+        Set<Role> roles = new HashSet<>();
+        if (userRoles == null || userRoles.isEmpty()) {
+            Role userRole = roleRepository.findByName(UserRole.USER)
+                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+            roles.add(userRole);
+        } else {
+            for (UserRole userRole : userRoles) {
+                Role role = roleRepository.findByName(userRole)
+                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                roles.add(role);
             }
         }
+        User user = User.builder()
+                .userName(request.getUserName())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .roles(roles)
+                .build();
+        User savedUser = userRepository.save(user);
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        User userDetails = (User) authentication.getPrincipal();
+        String jwt = jwtService.generateToken(userDetails);
+        Token refreshToken = jwtService.createRefreshToken(userDetails.getId());
+        String jwtToken = jwtService.generateToken(savedUser);
+
+        return RegistrationResponseDTO
+                .builder()
+                .id(userDetails.getId())
+                .email(userDetails.getEmail())
+                .roles(request.getRole())
+                .type(TokenType.Bearer.toString())
+                .token(jwtToken)
+                .refreshToken(refreshToken.getToken())
+                .build();
+
+    }
+
+
+    public AuthenticationResponse authenticate(AuthenticationRequestDTO request) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            User userDetails = (User) authentication.getPrincipal();
+            String jwt = jwtService.generateToken(userDetails);
+
+            // Delete existing refresh tokens for the user
+            jwtService.deleteByUserId(userDetails.getId());
+
+            // Create a new refresh token
+            Token refreshToken = jwtService.createRefreshToken(userDetails.getId());
+
+            return AuthenticationResponse.builder()
+                    .accessToken(jwt)
+                    .refreshToken(refreshToken.getToken())
+                    .build();
+        } catch (BadCredentialsException e) {
+            throw new BadCredentialsException("Authentication failed: " + e.getMessage(), e);
+        }
+    }
+
+
+    public NewAccessTokenResDTO refreshAccessToken(String refreshToken) {
+        return tokenRepository.findByToken(refreshToken)
+                .map(jwtService::verifyRefreshExpiration)
+                .map(Token::getUser)
+                .map(user -> {
+                    String newAccessToken = jwtService.generateToken(user);
+                    return new NewAccessTokenResDTO(newAccessToken, refreshToken);
+                })
+                .orElseThrow(() -> new TokenException("Refresh token is not valid or not found in the database."));
     }
 }

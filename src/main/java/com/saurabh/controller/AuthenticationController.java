@@ -1,15 +1,14 @@
 package com.saurabh.controller;
 
-import com.saurabh.dto.ApiResponse;
-import com.saurabh.dto.AuthenticationRequestDTO;
-import com.saurabh.dto.AuthenticationResponse;
-import com.saurabh.dto.RegistrationRequestDTO;
+import com.saurabh.dto.*;
 import com.saurabh.service.AuthenticationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 
@@ -17,45 +16,43 @@ import java.io.IOException;
 @RequestMapping("/api/v1/auth")
 public class AuthenticationController {
     private final AuthenticationService authenticationService;
+
     @Autowired
     public AuthenticationController(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
     }
 
 
-    /**
-     * Register a new user.
-     *
-     * @param request The registration request containing user details.
-     * @return ResponseEntity with an ApiResponse as the response body.
-     */
+
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthenticationResponse>> register(@RequestBody RegistrationRequestDTO request) {
-        ApiResponse<AuthenticationResponse> response = authenticationService.register(request);
-        return ResponseEntity.ok(response);
+    public ApiResponse<RegistrationResponseDTO> register(@RequestBody RegistrationRequestDTO request) {
+        RegistrationResponseDTO response = authenticationService.register(request);
+        return new ApiResponse<RegistrationResponseDTO>(
+                true,
+                "User Registered Successfully",
+                response
+        );
     }
 
-    /**
-     * Authenticate a user.
-     *
-     * @param request The authentication request containing user credentials.
-     * @return ResponseEntity with an ApiResponse as the response body.
-     */
+
     @PostMapping("/authenticate")
-    public ResponseEntity<ApiResponse<AuthenticationResponse>> authenticate(@RequestBody AuthenticationRequestDTO request) {
-        ApiResponse<AuthenticationResponse> response = authenticationService.authenticate(request);
-        return ResponseEntity.ok(response);
+    public ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequestDTO request) {
+        AuthenticationResponse response =authenticationService.authenticate(request);
+        return new ApiResponse<AuthenticationResponse>(
+                true,
+                "Authentication Successfully",
+                response
+        );
     }
 
-    /**
-     * Refresh an authentication token.
-     *
-     * @param request  The HTTP request object.
-     * @param response The HTTP response object.
-     * @throws IOException If there's an I/O error during token refresh.
-     */
-    @PostMapping("/refresh-token")
-    public void refreshToken(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        authenticationService.refreshToken(request, response);
+
+    @PostMapping("/refreshtoken")
+    public ApiResponse<NewAccessTokenResDTO> refreshAccessToken( @RequestBody NewAccessTokenReqDTO request) {
+            NewAccessTokenResDTO response = authenticationService.refreshAccessToken(request.getRefreshToken());
+        return new ApiResponse<NewAccessTokenResDTO>(
+                true,
+                "Access token generated",
+                response
+        );
     }
 }

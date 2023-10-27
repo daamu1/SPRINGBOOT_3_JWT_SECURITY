@@ -1,25 +1,34 @@
 package com.saurabh.service;
 
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import com.saurabh.enums.TokenType;
+import com.saurabh.exception.TokenException;
+import com.saurabh.exception.UserNotFoundException;
+import com.saurabh.model.Token;
+import com.saurabh.model.User;
+import com.saurabh.repository.TokenRepository;
+import com.saurabh.repository.UserRepository;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Function;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import java.security.Key;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
-
+    private static final String AUTHORITIES_CLAIM = "roles";
+    private final UserRepository userRepository;
+    private final TokenRepository tokenRepository;
     @Value("${application.security.jwt.secret-key}")
     private String secretKey;
     @Value("${application.security.jwt.expiration}")
@@ -37,14 +46,13 @@ public class JwtService {
     }
 
     public String generateToken(UserDetails userDetails) {
-
         return generateToken(new HashMap<>(), userDetails);
     }
 
     public String generateToken(
-                    Map<String,
+            Map<String,
                     Object> extraClaims,
-                    UserDetails userDetails
+            UserDetails userDetails
     ) {
         return buildToken(
                 extraClaims,
@@ -52,32 +60,57 @@ public class JwtService {
                 jwtExpiration);
     }
 
-    public String generateRefreshToken(
-            UserDetails userDetails
-    ) {
-        return buildToken(
-                new HashMap<>(),
-                userDetails,
-                refreshExpiration);
+    public Token createRefreshToken(Long userId) {
+        Token refreshToken = new Token();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
+
+        refreshToken.setUser(user);
+        refreshToken.setExpiryDate(Instant.now().plusMillis(refreshExpiration));
+        refreshToken.setToken(UUID.randomUUID().toString());
+        refreshToken.setTokenType(TokenType.Bearer);
+        refreshToken.setExpired(false);
+        refreshToken.setRevoked(false);
+
+        refreshToken = tokenRepository.save(refreshToken);
+        return refreshToken;
     }
-//    public String generateRefreshToken( ) {
-//        return UUID.randomUUID().toString();
-//    }
+
+    public Token verifyRefreshExpiration(Token token) {
+        if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
+            tokenRepository.delete(token);
+            throw new TokenException(token.getToken() + "Refresh token was expired. Please make a new signin request");
+        }
+        return token;
+    }
+
+    @Transactional
+    public int deleteByUserId(Long userId) {
+        return tokenRepository.deleteByUser(userRepository.findById(userId).get());
+    }
 
     private String buildToken(
             Map<String, Object> extraClaims,
             UserDetails userDetails,
             long expiration
     ) {
-        return Jwts
-                .builder()
-                .setClaims(extraClaims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+        Claims claims = Jwts.claims();
+        claims.setSubject(userDetails.getUsername());
+        claims.setIssuedAt(new Date(System.currentTimeMillis()));
+        claims.setExpiration(new Date(System.currentTimeMillis() + expiration));
+        claims.put(AUTHORITIES_CLAIM, getUserAuthorities(userDetails));
+
+        if (extraClaims != null && !extraClaims.isEmpty()) {
+            claims.putAll(extraClaims);
+        }
+
+        return Jwts.builder()
+                .setClaims(claims)
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
+
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
@@ -105,7 +138,31 @@ public class JwtService {
     private Key getSignInKey() {
         byte[] keyBytes =
                 Decoders
-                .BASE64.decode(secretKey);
+                        .BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+    public List<GrantedAuthority> getAuthoritiesFromJWT(String token) {
+        Claims claims = Jwts.parser()
+                .setSigningKey(secretKey)
+                .parseClaimsJws(token)
+                .getBody();
+
+        // Get the roles claim as a comma-separated string
+        String rolesClaim = claims.get(AUTHORITIES_CLAIM, String.class);
+
+        if (rolesClaim != null) {
+            return Arrays.stream(rolesClaim.split(","))
+                    .map(SimpleGrantedAuthority::new)
+                    .collect(Collectors.toList());
+        } else {
+            return Collections.emptyList();
+        }
+    }
+    private String getUserAuthorities(UserDetails user) {
+        return user
+                .getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(","));
     }
 }

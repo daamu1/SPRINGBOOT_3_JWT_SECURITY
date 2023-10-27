@@ -1,5 +1,6 @@
 package com.saurabh.filter;
 
+import com.saurabh.model.Role;
 import com.saurabh.repository.TokenRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -7,10 +8,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.util.List;
+
 import com.saurabh.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -37,31 +41,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
-        if (authHeader == null ||!authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // Handle unauthorized access
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
-        jwt = authHeader.substring(7);
-        userEmail = jwtService.extractUsername(jwt);
+
+        String jwt = authHeader.substring(7);
+        String userEmail = jwtService.extractUsername(jwt);
+
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-            boolean isTokenValid = tokenRepository.findByToken(jwt)
-                    .map(t -> !t.isExpired() && !t.isRevoked())
-                    .orElse(false);
-            if (jwtService.isTokenValid(jwt, userDetails) && isTokenValid) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+
+            if (jwtService.isTokenValid(jwt, userDetails)) {
+                List<GrantedAuthority> authorities = jwtService.getAuthoritiesFromJWT(jwt);
+
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
+
         filterChain.doFilter(request, response);
     }
 }
+

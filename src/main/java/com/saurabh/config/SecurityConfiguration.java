@@ -16,11 +16,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
-import static com.saurabh.enums.Permission.*;
-import static com.saurabh.enums.Role.ADMIN;
-import static com.saurabh.enums.Role.MANAGER;
-import static org.springframework.http.HttpMethod.*;
-
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -52,16 +47,7 @@ public class SecurityConfiguration {
                                 "/webjars/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        .requestMatchers(Constant.URL)
-                        .hasAnyRole(ADMIN.name(), MANAGER.name())
-                        .requestMatchers(GET, Constant.URL)
-                        .hasAnyAuthority(ADMIN_READ.name(), MANAGER_READ.name())
-                        .requestMatchers(POST, Constant.URL)
-                        .hasAnyAuthority(ADMIN_CREATE.name(), MANAGER_CREATE.name())
-                        .requestMatchers(PUT, Constant.URL)
-                        .hasAnyAuthority(ADMIN_UPDATE.name(), MANAGER_UPDATE.name())
-                        .requestMatchers(DELETE, Constant.URL)
-                        .hasAnyAuthority(ADMIN_DELETE.name(), MANAGER_DELETE.name())
+                        .requestMatchers(Constant.URL).permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

@@ -1,28 +1,43 @@
 package com.saurabh.controller;
 
 import io.swagger.v3.oas.annotations.Hidden;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @RestController
-@RequestMapping("/api/v1/demo-controller")
+@RequestMapping("/api/v1/test")
 @Hidden
+@CrossOrigin(origins = "*", maxAge = 3600)
 public class TestController {
-    @GetMapping
-    public ResponseEntity<String> sayHello() {
-        return ResponseEntity.ok("Hello from secured endpoint");
+    @GetMapping("/all")
+    public String allAccess() {
+        return "Public Content.";
+    }
+    @GetMapping("/common")
+    @PreAuthorize("hasRole('USER') or hasRole('MANAGER') or hasRole('ADMIN')")
+    public String commonAccess() {
+        return "Common Content.";
     }
 
-    @GetMapping("/msg")
-    public ResponseEntity<Map<String,String>> message()
-    {
-        Map<String,String>message=new HashMap<>();
-        message.put("Message","Hey I am inside the Test controller");
-        return ResponseEntity.ok(message);
+    @GetMapping("/user")
+    @PreAuthorize("hasRole('USER')")
+    public String userAccess() {
+        return "User Content.";
     }
+
+    @GetMapping("/manager")
+    @PreAuthorize("hasRole('MANAGER')")
+    public String moderatorAccess() {
+        return "Moderator Board.";
+    }
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String adminAccess() {
+        return "Admin Board.";
+    }
+
 }

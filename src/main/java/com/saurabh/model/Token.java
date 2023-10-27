@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.Instant;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -13,17 +15,18 @@ import lombok.experimental.FieldDefaults;
 @Entity
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Token {
-
     @Id
     @GeneratedValue
-    Integer id;
-    @Column(unique = true)
+    Long id;
+    @Column(unique = true, nullable = false)
     String token;
     @Enumerated(EnumType.STRING)
-    TokenType tokenType = TokenType.BEARER;
+    TokenType tokenType;
     boolean revoked;
     boolean expired;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @Column(nullable = false)
+    private Instant expiryDate;
+    @OneToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
     User user;
 }
